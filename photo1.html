@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>九宮格圖片展示與切割器</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Google Fonts: Noto Sans TC 與 Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- 引入 Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Noto Sans TC"', 'Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col antialiased selection:bg-indigo-100 selection:text-indigo-700">
+
+    <!-- 頂部導覽列 -->
+    <header class="bg-white/80 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-30">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-sm shadow-indigo-200">
+                    <i data-lucide="grid-3x3" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold tracking-tight text-slate-900">九宮格圖片展示器</h1>
+                    <p class="text-xs text-slate-500 hidden sm:block">3×3 拼圖切割檢視與互動工具</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button id="btn-reset" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200/80 hover:text-slate-900 rounded-lg transition-colors cursor-pointer">
+                    <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                    <span>重置視圖</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主要內容區 -->
+    <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            
+            <!-- 左側/上方：九宮格展示畫布區 -->
+            <div class="lg:col-span-7 flex flex-col items-center">
+                <div class="w-full bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200/80">
+                    <!-- 狀態提示列 -->
+                    <div class="flex items-center justify-between mb-4 text-xs text-slate-500">
+                        <span id="image-dimensions" class="inline-flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-md font-medium text-slate-600">
+                            <i data-lucide="image" class="w-3.5 h-3.5 text-indigo-500"></i>
+                            載入圖片尺寸中...
+                        </span>
+                        <span class="hidden sm:inline">點擊任一格子可下載該區塊圖片</span>
+                    </div>
+
+                    <!-- 九宮格容器外框 (維持圖片原始比例) -->
+                    <div class="relative w-full overflow-hidden rounded-xl bg-slate-100/80 border border-slate-200/60 flex items-center justify-center p-2 sm:p-4 min-h-[300px]">
+                        
+                        <!-- 載入中動畫 -->
+                        <div id="loading-overlay" class="absolute inset-0 bg-white/90 z-20 flex flex-col items-center justify-center gap-3">
+                            <div class="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                            <p class="text-sm font-medium text-slate-600">正在載入並解析高畫質圖片...</p>
+                        </div>
+
+                        <!-- 實際 3x3 九宮格網格 -->
+                        <div id="grid-container" class="w-full grid grid-cols-3 transition-all duration-200" style="gap: 8px;">
+                            <!-- 9 個格子將由 JavaScript 動態生成 -->
+                        </div>
+                    </div>
+
+                    <!-- 手機版提示 -->
+                    <p class="mt-3 text-center text-xs text-slate-400 sm:hidden">
+                        點擊任一格子即可預覽並下載該區塊
+                    </p>
+                </div>
+            </div>
+
+            <!-- 右側/下方：控制面板 -->
+            <div class="lg:col-span-5 space-y-6">
+                
+                <!-- 顯示模式與參數設定卡片 -->
+                <div class="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-200/80 space-y-6">
+                    <div>
+                        <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                            <i data-lucide="sliders-horizontal" class="w-4 h-4 text-indigo-600"></i>
+                            顯示與排版控制
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-1">自由調整九宮格的呈現方式與視覺細節</p>
+                    </div>
+
+                    <!-- 1. 顯示模式切換 -->
+                    <div class="space-y-2.5">
+                        <label class="block text-sm font-semibold text-slate-700">顯示模式</label>
+                        <div class="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl">
+                            <button id="mode-slice" class="flex items-center justify-center gap-2 py-2.5 px-3 text-sm font-semibold rounded-lg bg-white text-indigo-600 shadow-sm transition-all cursor-pointer">
+                                <i data-lucide="layout-grid" class="w-4 h-4"></i>
+                                <span>切割九宮格</span>
+                            </button>
+                            <button id="mode-repeat" class="flex items-center justify-center gap-2 py-2.5 px-3 text-sm font-medium rounded-lg text-slate-600 hover:text-slate-900 transition-all cursor-pointer">
+                                <i data-lucide="copy" class="w-4 h-4"></i>
+                                <span>九格重複原圖</span>
+                            </button>
+                        </div>
+                        <p id="mode-description" class="text-xs text-slate-500 leading-relaxed">
+                            將完整原圖等比例切割為 3×3 共九個區塊，適合社群媒體九宮格發文排版。
+                        </p>
+                    </div>
+
+                    <hr class="border-slate-100">
+
+                    <!-- 2. 格子間距調整 -->
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <label for="gap-slider" class="text-sm font-semibold text-slate-700">格子間距 (Gap)</label>
+                            <span id="gap-value" class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md">8 px</span>
+                        </div>
+                        <input type="range" id="gap-slider" min="0" max="32" value="8" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+                        <div class="flex justify-between text-[11px] text-slate-400">
+                            <span>0px (無縫拼圖)</span>
+                            <span>16px</span>
+                            <span>32px (寬鬆)</span>
+                        </div>
+                    </div>
+
+                    <!-- 3. 圓角調整 -->
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <label for="radius-slider" class="text-sm font-semibold text-slate-700">格子圓角 (Radius)</label>
+                            <span id="radius-value" class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md">8 px</span>
+                        </div>
+                        <input type="range" id="radius-slider" min="0" max="24" value="8" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+                        <div class="flex justify-between text-[11px] text-slate-400">
+                            <span>0px (直角)</span>
+                            <span>12px</span>
+                            <span>24px (大圓角)</span>
+                        </div>
+                    </div>
+
+                    <!-- 4. 格線編號開關 -->
+                    <div class="flex items-center justify-between pt-1">
+                        <div>
+                            <span class="text-sm font-semibold text-slate-700 block">顯示區塊編號 (1~9)</span>
+                            <span class="text-xs text-slate-500">在每個格子左上角顯示順序標記</span>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="toggle-numbers" class="sr-only peer" checked>
+                            <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 單張下載與原圖參考卡片 -->
+                <div class="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-200/80 space-y-4">
+                    <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                        <i data-lucide="download" class="w-4 h-4 text-indigo-600"></i>
+                        單格切片快速下載
+                    </h2>
+                    <p class="text-xs text-slate-500">
+                        點擊下方對應編號按鈕，或直接點擊左側九宮格中的任一區塊，即可下載該位置的獨立切割圖片：
+                    </p>
+                    
+                    <!-- 3x3 迷你下載按鈕矩陣 -->
+                    <div id="mini-download-grid" class="grid grid-cols-3 gap-2 pt-1">
+                        <!-- 由 JS 動態生成 1~9 下載按鈕 -->
+                    </div>
+
+                    <!-- 訊息提示框 (取代 alert) -->
+                    <div id="toast-message" class="hidden items-center gap-2 p-3 rounded-xl text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 transition-all">
+                        <i data-lucide="check-circle-2" class="w-4 h-4 shrink-0 text-emerald-600"></i>
+                        <span id="toast-text">圖片已開始下載</span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- 隱藏的 Canvas 用於高畫質圖片切割與匯出 -->
+    <canvas id="export-canvas" class="hidden"></canvas>
+
+    <script>
+        // 初始化 Lucide 圖示
+        lucide.createIcons();
+
+        // 目標圖片網址
+        const IMAGE_URL = 'https://i.postimg.cc/QCs0ZWHM/AI-tu-pian-sheng-cheng.jpg';
+
+        // 應用程式狀態管理
+        const state = {
+            mode: 'slice',       // 'slice' (切割九宮格) | 'repeat' (九格重複原圖)
+            gap: 8,              // 格子間距 (px)
+            radius: 8,           // 格子圓角 (px)
+            showNumbers: true,   // 是否顯示編號
+            imgNaturalWidth: 0,
+            imgNaturalHeight: 0,
+            aspectRatio: 1,
+            imageLoaded: false
+        };
+
+        // DOM 元素參照
+        const gridContainer = document.getElementById('grid-container');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const imageDimensionsEl = document.getElementById('image-dimensions');
+        const modeSliceBtn = document.getElementById('mode-slice');
+        const modeRepeatBtn = document.getElementById('mode-repeat');
+        const modeDescription = document.getElementById('mode-description');
+        const gapSlider = document.getElementById('gap-slider');
+        const gapValue = document.getElementById('gap-value');
+        const radiusSlider = document.getElementById('radius-slider');
+        const radiusValue = document.getElementById('radius-value');
+        const toggleNumbers = document.getElementById('toggle-numbers');
+        const btnReset = document.getElementById('btn-reset');
+        const miniDownloadGrid = document.getElementById('mini-download-grid');
+        const exportCanvas = document.getElementById('export-canvas');
+        const toastMessage = document.getElementById('toast-message');
+        const toastText = document.getElementById('toast-text');
+
+        // 儲存載入後的 Image 物件供 Canvas 繪製使用
+        let sourceImage = new Image();
+        sourceImage.crossOrigin = 'anonymous'; // 嘗試啟用 CORS 以支援 Canvas 匯出
+
+        // 顯示提示訊息 (取代 alert)
+        let toastTimeout;
+        function showToast(msg, isError = false) {
+            clearTimeout(toastTimeout);
+            toastText.textContent = msg;
+            toastMessage.classList.remove('hidden', 'bg-emerald-50', 'text-emerald-700', 'border-emerald-200', 'bg-amber-50', 'text-amber-800', 'border-amber-200');
+            
+            if (isError) {
+                toastMessage.classList.add('flex', 'bg-amber-50', 'text-amber-800', 'border-amber-200');
+            } else {
+                toastMessage.classList.add('flex', 'bg-emerald-50', 'text-emerald-700', 'border-emerald-200');
+            }
+
+            toastTimeout = setTimeout(() => {
+                toastMessage.classList.add('hidden');
+                toastMessage.classList.remove('flex');
+            }, 3500);
+        }
+
+        // 建立 9 個格子與迷你下載按鈕
+        function initGridElements() {
+            gridContainer.innerHTML = '';
+            miniDownloadGrid.innerHTML = '';
+
+            for (let i = 0; i < 9; i++) {
+                const row = Math.floor(i / 3); // 0, 1, 2
+                const col = i % 3;             // 0, 1, 2
+                const indexNum = i + 1;
+
+                // 1. 建立九宮格單一格子
+                const cell = document.createElement('div');
+                cell.className = 'grid-cell relative overflow-hidden bg-slate-200 group cursor-pointer shadow-xs transition-all duration-200 hover:ring-2 hover:ring-indigo-500 hover:z-10';
+                cell.style.borderRadius = `${state.radius}px`;
+                cell.dataset.index = i;
+
+                // 內部圖片容器 (使用 background-image 精準控制切割位置與重複模式)
+                const imgLayer = document.createElement('div');
+                imgLayer.className = 'img-layer w-full h-full bg-no-repeat transition-transform duration-300 group-hover:scale-[1.03]';
+                imgLayer.style.backgroundImage = `url('${IMAGE_URL}')`;
+
+                // 編號標籤
+                const badge = document.createElement('span');
+                badge.className = 'cell-badge absolute top-2 left-2 w-6 h-6 rounded-md bg-slate-900/65 backdrop-blur-xs text-white text-xs font-bold flex items-center justify-center pointer-events-none transition-opacity duration-200';
+                badge.textContent = indexNum;
+
+                // 懸停下載提示遮罩
+                const hoverOverlay = document.createElement('div');
+                hoverOverlay.className = 'absolute inset-0 bg-indigo-950/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center justify-center text-white p-2 text-center';
+                hoverOverlay.innerHTML = `
+                    <div class="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center mb-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                    </div>
+                    <span class="text-[11px] font-medium tracking-wide">下載第 ${indexNum} 格</span>
+                `;
+
+                cell.appendChild(imgLayer);
+                cell.appendChild(badge);
+                cell.appendChild(hoverOverlay);
+
+                // 點擊格子觸發下載
+                cell.addEventListener('click', () => downloadSingleCell(i));
+                gridContainer.appendChild(cell);
+
+                // 2. 建立右側對應的迷你下載按鈕
+                const miniBtn = document.createElement('button');
+                miniBtn.className = 'flex items-center justify-center gap-1.5 py-2 px-2.5 bg-slate-50 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 border border-slate-200 hover:border-indigo-300 rounded-lg text-xs font-medium transition-colors cursor-pointer';
+                miniBtn.innerHTML = `
+                    <span class="w-4 h-4 rounded bg-slate-200/80 text-slate-700 text-[10px] font-bold flex items-center justify-center">${indexNum}</span>
+                    <span>下載切片</span>
+                `;
+                miniBtn.addEventListener('click', () => downloadSingleCell(i));
+                miniDownloadGrid.appendChild(miniBtn);
+            }
+        }
+
+        // 根據目前狀態更新九宮格視覺呈現
+        function renderGrid() {
+            // 更新網格間距
+            gridContainer.style.gap = `${state.gap}px`;
+
+            // 設定網格整體比例，確保每個格子與原圖比例一致
+            if (state.aspectRatio) {
+                gridContainer.style.aspectRatio = `${state.aspectRatio}`;
+            }
+
+            const cells = gridContainer.querySelectorAll('.grid-cell');
+            cells.forEach((cell, i) => {
+                const row = Math.floor(i / 3);
+                const col = i % 3;
+                const imgLayer = cell.querySelector('.img-layer');
+                const badge = cell.querySelector('.cell-badge');
+
+                // 更新圓角
+                cell.style.borderRadius = `${state.radius}px`;
+
+                // 更新編號顯示狀態
+                badge.style.opacity = state.showNumbers ? '1' : '0';
+
+                // 根據模式計算背景尺寸與定位
+                if (state.mode === 'slice') {
+                    // 切割九宮格模式：每個格子顯示原圖的 1/3 寬與 1/3 高
+                    // background-size 設為 300% 300%，position 分別為 0%, 50%, 100%
+                    imgLayer.style.backgroundSize = '300% 300%';
+                    const posX = col * 50; // 0%, 50%, 100%
+                    const posY = row * 50; // 0%, 50%, 100%
+                    imgLayer.style.backgroundPosition = `${posX}% ${posY}%`;
+                } else {
+                    // 九格重複原圖模式：每個格子完整顯示整張原圖
+                    imgLayer.style.backgroundSize = '100% 100%';
+                    imgLayer.style.backgroundPosition = 'center center';
+                }
+            });
+
+            // 更新模式按鈕樣式與說明文字
+            if (state.mode === 'slice') {
+                modeSliceBtn.className = 'flex items-center justify-center gap-2 py-2.5 px-3 text-sm font-semibold rounded-lg bg-white text-indigo-600 shadow-sm transition-all cursor-pointer';
+                modeRepeatBtn.className = 'flex items-center justify-center gap-2 py-2.5 px-3 text-sm font-medium rounded-lg text-slate-600 hover:text-slate-900 transition-all cursor-pointer';
+                modeDescription.textContent = '將完整原圖等比例切割為 3×3 共九個區塊，適合社群媒體九宮格發文排版。';
+            } else {
+                modeRepeatBtn.className = 'flex items-center justify-center gap-2 py-2.5 px-3 text-sm font-semibold rounded-lg bg-white text-indigo-600 shadow-sm transition-all cursor-pointer';
+                modeSliceBtn.className = 'flex items-center justify-center gap-2 py-2.5 px-3 text-sm font-medium rounded-lg text-slate-600 hover:text-slate-900 transition-all cursor-pointer';
+                modeDescription.textContent = '在九個格子中分別完整顯示同一張原圖，營造重複普普藝術與對稱視覺效果。';
+            }
+        }
+
+        // 下載單一格子的圖片 (使用 Canvas 進行精準高畫質裁切)
+        function downloadSingleCell(index) {
+            if (!state.imageLoaded) {
+                showToast('圖片尚未載入完成，請稍候再試', true);
+                return;
+            }
+
+            const row = Math.floor(index / 3);
+            const col = index % 3;
+            const indexNum = index + 1;
+
+            try {
+                const ctx = exportCanvas.getContext('2d');
+                
+                if (state.mode === 'slice') {
+                    // 切割模式：計算原圖對應的 1/3 區塊座標與寬高
+                    const sliceW = state.imgNaturalWidth / 3;
+                    const sliceH = state.imgNaturalHeight / 3;
+                    const sx = col * sliceW;
+                    const sy = row * sliceH;
+
+                    exportCanvas.width = Math.round(sliceW);
+                    exportCanvas.height = Math.round(sliceH);
+                    ctx.clearRect(0, 0, exportCanvas.width, exportCanvas.height);
+                    ctx.drawImage(
+                        sourceImage,
+                        sx, sy, sliceW, sliceH,
+                        0, 0, exportCanvas.width, exportCanvas.height
+                    );
+                } else {
+                    // 重複原圖模式：匯出完整原圖
+                    exportCanvas.width = state.imgNaturalWidth;
+                    exportCanvas.height = state.imgNaturalHeight;
+                    ctx.clearRect(0, 0, exportCanvas.width, exportCanvas.height);
+                    ctx.drawImage(sourceImage, 0, 0);
+                }
+
+                // 轉換為 DataURL 並觸發下載
+                const dataUrl = exportCanvas.toDataURL('image/jpeg', 0.95);
+                const link = document.createElement('a');
+                const fileName = state.mode === 'slice' 
+                    ? `九宮格切片_第${indexNum}格_${row + 1}列${col + 1}欄.jpg`
+                    : `九宮格原圖_第${indexNum}格.jpg`;
+                
+                link.download = fileName;
+                link.href = dataUrl;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                showToast(`已成功下載「${fileName}」`);
+            } catch (err) {
+                console.error('Canvas 匯出失敗（可能受限於外部圖片 CORS 政策）：', err);
+                // 若外部圖床未開放 CORS 導致 Canvas tainted，提供備用方案開啟原圖
+                showToast('受限於圖床跨域安全限制，已為您開啟原圖視窗供右鍵另存', true);
+                window.open(IMAGE_URL, '_blank', 'noopener,noreferrer');
+            }
+        }
+
+        // 載入圖片並取得真實長寬比
+        function loadImage() {
+            sourceImage.onload = () => {
+                state.imgNaturalWidth = sourceImage.naturalWidth || 900;
+                state.imgNaturalHeight = sourceImage.naturalHeight || 900;
+                state.aspectRatio = state.imgNaturalWidth / state.imgNaturalHeight;
+                state.imageLoaded = true;
+
+                imageDimensionsEl.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-indigo-500"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                    原圖尺寸：${state.imgNaturalWidth} × ${state.imgNaturalHeight} px
+                `;
+
+                loadingOverlay.classList.add('hidden');
+                renderGrid();
+            };
+
+            sourceImage.onerror = () => {
+                // 若加了 crossOrigin 失敗，嘗試不帶 crossOrigin 重新載入以確保畫面正常顯示
+                if (sourceImage.crossOrigin) {
+                    sourceImage = new Image();
+                    sourceImage.onload = () => {
+                        state.imgNaturalWidth = sourceImage.naturalWidth || 900;
+                        state.imgNaturalHeight = sourceImage.naturalHeight || 900;
+                        state.aspectRatio = state.imgNaturalWidth / state.imgNaturalHeight;
+                        state.imageLoaded = true;
+                        imageDimensionsEl.textContent = `原圖尺寸：${state.imgNaturalWidth} × ${state.imgNaturalHeight} px`;
+                        loadingOverlay.classList.add('hidden');
+                        renderGrid();
+                    };
+                    sourceImage.onerror = () => {
+                        loadingOverlay.innerHTML = `
+                            <p class="text-sm font-medium text-rose-600">圖片載入失敗，請檢查網路連線或圖片連結是否有效。</p>
+                        `;
+                    };
+                    sourceImage.src = IMAGE_URL;
+                }
+            };
+
+            sourceImage.src = IMAGE_URL;
+        }
+
+        // 綁定互動事件
+        function bindEvents() {
+            // 切換模式：切割九宮格
+            modeSliceBtn.addEventListener('click', () => {
+                state.mode = 'slice';
+                renderGrid();
+            });
+
+            // 切換模式：九格重複原圖
+            modeRepeatBtn.addEventListener('click', () => {
+                state.mode = 'repeat';
+                renderGrid();
+            });
+
+            // 調整格子間距
+            gapSlider.addEventListener('input', (e) => {
+                state.gap = parseInt(e.target.value, 10);
+                gapValue.textContent = `${state.gap} px`;
+                renderGrid();
+            });
+
+            // 調整格子圓角
+            radiusSlider.addEventListener('input', (e) => {
+                state.radius = parseInt(e.target.value, 10);
+                radiusValue.textContent = `${state.radius} px`;
+                renderGrid();
+            });
+
+            // 切換區塊編號顯示
+            toggleNumbers.addEventListener('change', (e) => {
+                state.showNumbers = e.target.checked;
+                renderGrid();
+            });
+
+            // 重置視圖按鈕
+            btnReset.addEventListener('click', () => {
+                state.mode = 'slice';
+                state.gap = 8;
+                state.radius = 8;
+                state.showNumbers = true;
+
+                gapSlider.value = 8;
+                gapValue.textContent = '8 px';
+                radiusSlider.value = 8;
+                radiusValue.textContent = '8 px';
+                toggleNumbers.checked = true;
+
+                renderGrid();
+                showToast('已恢復為預設九宮格檢視設定');
+            });
+        }
+
+        // 啟動應用程式
+        initGridElements();
+        bindEvents();
+        loadImage();
+    </script>
+</body>
+</html>
