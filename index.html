@@ -1,0 +1,1116 @@
+<!DOCTYPE html>
+<html lang="zh-TW" data-theme="cyan">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CHRONO-X // 賽博量子數字時鐘</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入未來科技字體 Orbitron, JetBrains Mono 與繁體中文 Noto Sans TC -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Noto+Sans+TC:wght@400;500;700;900&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        hud: ['"Orbitron"', '"JetBrains Mono"', 'monospace'],
+                        mono: ['"JetBrains Mono"', '"Noto Sans TC"', 'monospace'],
+                        sans: ['"Noto Sans TC"', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* 四種科技霓虹配色主題 CSS 變數 */
+        :root, [data-theme="cyan"] {
+            --bg-base: #040914;
+            --bg-panel: rgba(8, 20, 38, 0.78);
+            --bg-sub: rgba(4, 12, 26, 0.85);
+            --primary: #00F3FF;
+            --primary-dim: rgba(0, 243, 255, 0.16);
+            --primary-border: rgba(0, 243, 255, 0.45);
+            --secondary: #0077FF;
+            --accent: #FF2A85;
+            --text-main: #E6FAFF;
+            --text-muted: #6899B2;
+            --glow-strong: 0 0 18px rgba(0, 243, 255, 0.65), 0 0 38px rgba(0, 243, 255, 0.25);
+            --glow-soft: 0 0 12px rgba(0, 243, 255, 0.22);
+            --particle-rgb: 0, 243, 255;
+        }
+
+        [data-theme="matrix"] {
+            --bg-base: #030D06;
+            --bg-panel: rgba(6, 24, 11, 0.8);
+            --bg-sub: rgba(3, 14, 6, 0.88);
+            --primary: #00FF66;
+            --primary-dim: rgba(0, 255, 102, 0.15);
+            --primary-border: rgba(0, 255, 102, 0.45);
+            --secondary: #009933;
+            --accent: #CCFF00;
+            --text-main: #E2FFE9;
+            --text-muted: #5C9E72;
+            --glow-strong: 0 0 18px rgba(0, 255, 102, 0.65), 0 0 38px rgba(0, 255, 102, 0.25);
+            --glow-soft: 0 0 12px rgba(0, 255, 102, 0.22);
+            --particle-rgb: 0, 255, 102;
+        }
+
+        [data-theme="amber"] {
+            --bg-base: #0F0802;
+            --bg-panel: rgba(28, 15, 4, 0.8);
+            --bg-sub: rgba(18, 9, 2, 0.88);
+            --primary: #FF9E00;
+            --primary-dim: rgba(255, 158, 0, 0.16);
+            --primary-border: rgba(255, 158, 0, 0.48);
+            --secondary: #FF5400;
+            --accent: #00E5FF;
+            --text-main: #FFF3E0;
+            --text-muted: #A67B53;
+            --glow-strong: 0 0 18px rgba(255, 158, 0, 0.65), 0 0 38px rgba(255, 158, 0, 0.25);
+            --glow-soft: 0 0 12px rgba(255, 158, 0, 0.22);
+            --particle-rgb: 255, 158, 0;
+        }
+
+        [data-theme="plasma"] {
+            --bg-base: #0B0314;
+            --bg-panel: rgba(22, 8, 38, 0.8);
+            --bg-sub: rgba(13, 4, 24, 0.88);
+            --primary: #D946EF;
+            --primary-dim: rgba(217, 70, 239, 0.18);
+            --primary-border: rgba(217, 70, 239, 0.5);
+            --secondary: #7E22CE;
+            --accent: #00F3FF;
+            --text-main: #FAE8FF;
+            --text-muted: #9D6BA8;
+            --glow-strong: 0 0 18px rgba(217, 70, 239, 0.7), 0 0 38px rgba(217, 70, 239, 0.28);
+            --glow-soft: 0 0 12px rgba(217, 70, 239, 0.25);
+            --particle-rgb: 217, 70, 239;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            transition: background-color 0.4s ease, color 0.3s ease;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* 動態透視網格地板 */
+        .perspective-grid {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            background-image: 
+                linear-gradient(to right, var(--primary-dim) 1px, transparent 1px),
+                linear-gradient(to bottom, var(--primary-dim) 1px, transparent 1px);
+            background-size: 48px 48px;
+            mask-image: radial-gradient(ellipse at center, rgba(0,0,0,0.85) 20%, rgba(0,0,0,0.15) 85%);
+            -webkit-mask-image: radial-gradient(ellipse at center, rgba(0,0,0,0.85) 20%, rgba(0,0,0,0.15) 85%);
+        }
+
+        /* 微幅 CRT 掃描線濾鏡 */
+        .crt-scanlines {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 40;
+            background: repeating-linear-gradient(
+                to bottom,
+                transparent 0px,
+                transparent 2px,
+                rgba(0, 0, 0, 0.18) 3px,
+                rgba(0, 0, 0, 0.18) 4px
+            );
+        }
+
+        /* HUD 科技面板與切角設計 */
+        .hud-panel {
+            background-color: var(--bg-panel);
+            border: 1px solid var(--primary-border);
+            box-shadow: var(--glow-soft), inset 0 0 24px rgba(0, 0, 0, 0.55);
+            backdrop-filter: blur(10px);
+            position: relative;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        /* HUD 四角準星裝飾 */
+        .hud-corner::before,
+        .hud-corner::after {
+            content: '';
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border-color: var(--primary);
+            pointer-events: none;
+            transition: border-color 0.3s ease;
+        }
+        .hud-corner::before {
+            top: -1px;
+            left: -1px;
+            border-top: 2px solid var(--primary);
+            border-left: 2px solid var(--primary);
+        }
+        .hud-corner::after {
+            bottom: -1px;
+            right: -1px;
+            border-bottom: 2px solid var(--primary);
+            border-right: 2px solid var(--primary);
+        }
+
+        /* 霓虹發光文字 */
+        .neon-text {
+            color: var(--primary);
+            text-shadow: var(--glow-strong);
+        }
+
+        .neon-colon {
+            animation: pulseColon 1s steps(2, start) infinite;
+        }
+
+        @keyframes pulseColon {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.35; }
+        }
+
+        /* 校準光束掃描動畫 */
+        @keyframes scanBeam {
+            0% { top: -10%; opacity: 0; }
+            15% { opacity: 1; }
+            85% { opacity: 1; }
+            100% { top: 110%; opacity: 0; }
+        }
+
+        .calibrating-beam {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, transparent, var(--primary), #ffffff, var(--primary), transparent);
+            box-shadow: 0 0 20px 4px var(--primary);
+            z-index: 20;
+            pointer-events: none;
+            animation: scanBeam 0.95s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+
+        /* 科技按鈕互動效果 */
+        .cyber-btn {
+            border: 1px solid var(--primary-border);
+            background-color: var(--bg-sub);
+            color: var(--text-main);
+            transition: all 0.18s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .cyber-btn:hover {
+            border-color: var(--primary);
+            background-color: var(--primary-dim);
+            box-shadow: var(--glow-soft);
+        }
+        .cyber-btn:active {
+            transform: scale(0.97);
+        }
+        .cyber-btn-active {
+            background-color: var(--primary) !important;
+            color: #030712 !important;
+            border-color: var(--primary) !important;
+            font-weight: 800;
+            box-shadow: var(--glow-strong);
+        }
+
+        /* 自訂捲軸 (碼錶分段紀錄用) */
+        ::-webkit-scrollbar {
+            width: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg-sub);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary-border);
+        }
+    </style>
+</head>
+<body class="font-mono flex flex-col justify-between p-3 sm:p-6 select-none relative">
+
+    <!-- 背景 Canvas 流動數據粒子連線 -->
+    <canvas id="particle-canvas" class="fixed inset-0 pointer-events-none z-0"></canvas>
+    <!-- 透視網格 -->
+    <div class="perspective-grid"></div>
+    <!-- CRT 微幅掃描線 -->
+    <div class="crt-scanlines"></div>
+
+    <!-- 頂部系統遙測狀態列 (Telemetry Bar) -->
+    <div class="relative z-10 w-full max-w-3xl mx-auto flex flex-wrap items-center justify-between gap-2 text-[11px] sm:text-xs tracking-widest px-2 py-1.5 border-b"
+         style="border-color: var(--primary-border); color: var(--text-muted);">
+        <div class="flex items-center gap-3">
+            <span class="flex items-center gap-1.5 font-bold" style="color: var(--primary);">
+                <span class="w-2 h-2 rounded-full animate-ping" style="background-color: var(--primary);"></span>
+                SYS.ONLINE
+            </span>
+            <span class="hidden sm:inline">//</span>
+            <span>SYNC: <strong style="color: var(--text-main);">NTP-ATOM</strong></span>
+        </div>
+        <div class="flex items-center gap-3">
+            <span>LOC: <strong style="color: var(--text-main);">TWN-CST (UTC+8)</strong></span>
+            <span class="hidden sm:inline">//</span>
+            <span id="telemetry-fps" class="hidden sm:inline">60 HZ</span>
+        </div>
+    </div>
+
+    <!-- 主體內容容器 -->
+    <main class="relative z-10 w-full max-w-3xl mx-auto my-auto py-4 flex flex-col gap-4">
+
+        <!-- 控制列：主題切換器 & 12/24H & 量子脈衝音效 -->
+        <header class="hud-panel hud-corner rounded-lg p-3 flex flex-wrap items-center justify-between gap-3">
+            <!-- 四大科技霓虹主題切換 -->
+            <div class="flex flex-wrap items-center gap-1.5" role="group" aria-label="切換科技霓虹主題">
+                <button onclick="setTheme('cyan')" data-theme-btn="cyan"
+                    class="cyber-btn cyber-btn-active px-2.5 py-1.5 rounded text-xs tracking-wider flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-[#00F3FF] inline-block"></span>
+                    <span>賽博青藍</span>
+                </button>
+                <button onclick="setTheme('matrix')" data-theme-btn="matrix"
+                    class="cyber-btn px-2.5 py-1.5 rounded text-xs tracking-wider flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-[#00FF66] inline-block"></span>
+                    <span>駭客矩陣</span>
+                </button>
+                <button onclick="setTheme('amber')" data-theme-btn="amber"
+                    class="cyber-btn px-2.5 py-1.5 rounded text-xs tracking-wider flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-[#FF9E00] inline-block"></span>
+                    <span>警示琥珀</span>
+                </button>
+                <button onclick="setTheme('plasma')" data-theme-btn="plasma"
+                    class="cyber-btn px-2.5 py-1.5 rounded text-xs tracking-wider flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-[#D946EF] inline-block"></span>
+                    <span>電漿紫紅</span>
+                </button>
+            </div>
+
+            <!-- 右側功能開關：12/24H 切換 & 量子脈衝音效 -->
+            <div class="flex items-center gap-2 ml-auto sm:ml-0">
+                <button id="format-toggle-btn" onclick="toggleHourFormat()"
+                    class="cyber-btn px-3 py-1.5 rounded text-xs font-bold tracking-wider">
+                    24H 制
+                </button>
+                <button id="sound-toggle-btn" onclick="toggleSound()"
+                    class="cyber-btn px-3 py-1.5 rounded text-xs font-bold tracking-wider flex items-center gap-1.5">
+                    <span id="sound-indicator" class="w-2 h-2 rounded-full bg-gray-500"></span>
+                    <span id="sound-label">脈衝音效: 關</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- ==================== 核心主面板：高精準純數字 HUD 時鐘 ==================== -->
+        <section id="clock-core-panel" onclick="triggerCalibration()" role="button" tabindex="0"
+                 aria-label="主數位時鐘面板，點擊執行量子校準掃描"
+                 class="hud-panel hud-corner rounded-xl p-5 sm:p-8 cursor-pointer overflow-hidden group transition-transform duration-150 active:scale-[0.995]">
+            
+            <!-- 動態掃描光束容器 -->
+            <div id="scan-beam-container"></div>
+
+            <!-- 頂部子資訊列：AM/PM 指示 + 互動提示 -->
+            <div class="flex items-center justify-between text-xs tracking-widest mb-3" style="color: var(--text-muted);">
+                <div class="flex items-center gap-2">
+                    <span class="px-2 py-0.5 rounded border text-[11px] font-bold"
+                          style="border-color: var(--primary-border); background-color: var(--primary-dim); color: var(--primary);">
+                        CHRONO-CORE // V4.2
+                    </span>
+                    <span id="ampm-badge" class="hidden px-2 py-0.5 rounded font-bold text-[11px]"
+                          style="background-color: var(--primary); color: #030712;">
+                        PM
+                    </span>
+                </div>
+                <span class="group-hover:opacity-100 opacity-70 transition-opacity flex items-center gap-1" style="color: var(--primary);">
+                    <span>[ 點擊執行系統校準 ]</span>
+                </span>
+            </div>
+
+            <!-- 超大尺寸發光數位時間顯示 (HH : MM : SS . mmm) -->
+            <div class="flex flex-col sm:flex-row items-center justify-center sm:items-baseline gap-2 sm:gap-3 my-2 sm:my-4">
+                <div class="font-hud font-black tracking-wider flex items-baseline justify-center text-5xl sm:text-7xl md:text-8xl neon-text tabular-nums">
+                    <span id="main-hours">00</span>
+                    <span class="neon-colon mx-0.5 sm:mx-1">:</span>
+                    <span id="main-minutes">00</span>
+                    <span class="neon-colon mx-0.5 sm:mx-1">:</span>
+                    <span id="main-seconds">00</span>
+                </div>
+                <!-- 獨立高速跳動毫秒數 -->
+                <div class="font-hud font-bold text-2xl sm:text-3xl md:text-4xl tracking-widest tabular-nums px-2.5 py-1 rounded border"
+                     style="color: var(--primary); border-color: var(--primary-border); background-color: var(--bg-sub);">
+                    .<span id="main-millis">000</span>
+                </div>
+            </div>
+
+            <!-- 系統校準狀態訊息欄 (點擊時更新閃爍) -->
+            <div id="calibration-status-bar" class="my-3 py-1.5 px-3 rounded border text-xs sm:text-sm tracking-wider flex items-center justify-between"
+                 style="background-color: var(--bg-sub); border-color: var(--primary-border);">
+                <span class="flex items-center gap-2">
+                    <span style="color: var(--primary);">▶</span>
+                    <span id="calibration-msg" style="color: var(--text-main);">量子時鐘基準穩定 // 誤差率 &lt; 0.0001ms</span>
+                </span>
+                <span id="calibration-tag" class="text-[11px] font-bold px-1.5 py-0.5 rounded"
+                      style="background-color: var(--primary-dim); color: var(--primary);">
+                    READY
+                </span>
+            </div>
+
+            <!-- 底部日期、ISO週數與當日進度能量條 -->
+            <div class="mt-4 pt-4 border-t grid grid-cols-1 sm:grid-cols-12 gap-4 items-center"
+                 style="border-color: var(--primary-border);">
+                <!-- 左側：完整繁體中文日期與 ISO 週數 -->
+                <div class="sm:col-span-7 flex flex-col gap-1 text-center sm:text-left">
+                    <div id="full-date-display" class="text-base sm:text-lg font-bold tracking-wider" style="color: var(--text-main);">
+                        2026年11月25日 星期三
+                    </div>
+                    <div class="text-xs tracking-widest flex items-center justify-center sm:justify-start gap-3" style="color: var(--text-muted);">
+                        <span id="iso-week-display">ISO 週數: W48</span>
+                        <span>|</span>
+                        <span id="unix-timestamp-display">UNIX: 1795607220</span>
+                    </div>
+                </div>
+
+                <!-- 右側：當日進度條 (Day Progress %) -->
+                <div class="sm:col-span-5 flex flex-col gap-1.5">
+                    <div class="flex justify-between items-center text-xs tracking-wider">
+                        <span style="color: var(--text-muted);">當日能量進度</span>
+                        <span id="day-progress-text" class="font-bold tabular-nums" style="color: var(--primary);">00.00%</span>
+                    </div>
+                    <div class="w-full h-2.5 rounded-sm p-0.5 border overflow-hidden"
+                         style="background-color: var(--bg-sub); border-color: var(--primary-border);">
+                        <div id="day-progress-bar" class="h-full transition-all duration-300"
+                             style="width: 0%; background-color: var(--primary); box-shadow: var(--glow-soft);"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== 多功能科技儀表模組 (分頁導覽) ==================== -->
+        <nav class="grid grid-cols-3 gap-2" role="tablist">
+            <button id="tab-btn-world" onclick="switchModule('world')" role="tab" aria-selected="true"
+                class="cyber-btn cyber-btn-active py-2.5 px-2 rounded-lg text-xs sm:text-sm font-bold tracking-wider flex items-center justify-center gap-1.5">
+                <span>🌐</span>
+                <span>世界時區矩陣</span>
+            </button>
+            <button id="tab-btn-timer" onclick="switchModule('timer')" role="tab" aria-selected="false"
+                class="cyber-btn py-2.5 px-2 rounded-lg text-xs sm:text-sm font-bold tracking-wider flex items-center justify-center gap-1.5">
+                <span>⏳</span>
+                <span>戰術倒數計時</span>
+            </button>
+            <button id="tab-btn-chrono" onclick="switchModule('chrono')" role="tab" aria-selected="false"
+                class="cyber-btn py-2.5 px-2 rounded-lg text-xs sm:text-sm font-bold tracking-wider flex items-center justify-center gap-1.5">
+                <span>⏱️</span>
+                <span>精密碼錶</span>
+            </button>
+        </nav>
+
+        <!-- ==================== 模組 1：世界時區矩陣 (WORLD NODES) ==================== -->
+        <section id="module-world" class="hud-panel hud-corner rounded-xl p-4 sm:p-5">
+            <div class="flex items-center justify-between text-xs tracking-widest mb-3 pb-2 border-b"
+                 style="border-color: var(--primary-border); color: var(--text-muted);">
+                <span>GLOBAL TIME NODES // 全球同步節點</span>
+                <span style="color: var(--primary);">4 NODES ACTIVE</span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3" id="world-nodes-grid">
+                <!-- 由 JS 動態填入台北、東京、倫敦、紐約四個節點卡片 -->
+            </div>
+        </section>
+
+        <!-- ==================== 模組 2：戰術倒數計時器 (TACTICAL TIMER) ==================== -->
+        <section id="module-timer" class="hidden hud-panel hud-corner rounded-xl p-4 sm:p-6">
+            <div class="flex flex-wrap items-center justify-between gap-2 text-xs tracking-widest mb-4 pb-2 border-b"
+                 style="border-color: var(--primary-border); color: var(--text-muted);">
+                <span>TACTICAL COUNTDOWN // 戰術倒數模組</span>
+                <div class="flex flex-wrap gap-1.5">
+                    <button onclick="setTimerPreset(25, 0, '深度專注序列')" class="cyber-btn px-2.5 py-1 rounded text-[11px] font-bold">25:00 深度專注</button>
+                    <button onclick="setTimerPreset(5, 0, '系統冷卻週期')" class="cyber-btn px-2.5 py-1 rounded text-[11px] font-bold">05:00 系統冷卻</button>
+                    <button onclick="setTimerPreset(1, 0, '快速脈衝測試')" class="cyber-btn px-2.5 py-1 rounded text-[11px] font-bold">01:00 快速測試</button>
+                </div>
+            </div>
+
+            <div class="flex flex-col items-center">
+                <!-- 任務標籤 -->
+                <div id="timer-mode-label" class="text-xs font-bold tracking-widest px-3 py-1 rounded mb-2"
+                     style="background-color: var(--primary-dim); color: var(--primary);">
+                    深度專注序列
+                </div>
+
+                <!-- 大型倒數數位顯示 -->
+                <div id="timer-readout" class="font-hud font-black text-5xl sm:text-6xl tracking-widest neon-text tabular-nums my-2">
+                    25:00
+                </div>
+
+                <!-- 自訂分秒微調控制 -->
+                <div class="flex items-center gap-3 my-2 text-xs">
+                    <button onclick="adjustTimer(-60)" class="cyber-btn px-2.5 py-1 rounded font-bold">-1 分</button>
+                    <button onclick="adjustTimer(-10)" class="cyber-btn px-2.5 py-1 rounded font-bold">-10 秒</button>
+                    <button onclick="adjustTimer(10)" class="cyber-btn px-2.5 py-1 rounded font-bold">+10 秒</button>
+                    <button onclick="adjustTimer(60)" class="cyber-btn px-2.5 py-1 rounded font-bold">+1 分</button>
+                </div>
+
+                <!-- 倒數能量進度條 -->
+                <div class="w-full max-w-md h-3 rounded-sm p-0.5 border my-3"
+                     style="background-color: var(--bg-sub); border-color: var(--primary-border);">
+                    <div id="timer-progress-fill" class="h-full transition-all duration-300"
+                         style="width: 100%; background-color: var(--primary); box-shadow: var(--glow-soft);"></div>
+                </div>
+
+                <!-- 警報提示訊息區 -->
+                <div id="timer-alert-box" class="hidden w-full max-w-md mb-3 py-2 px-4 rounded border text-center text-xs sm:text-sm font-bold animate-pulse"
+                     style="background-color: rgba(255, 42, 133, 0.2); border-color: #FF2A85; color: #FF85B8;">
+                    ⚠️ [ALERT] 倒數計時序列已完成！系統提示音響起。
+                </div>
+
+                <!-- 操作按鈕 -->
+                <div class="flex items-center gap-3 mt-1">
+                    <button id="timer-start-stop-btn" onclick="toggleTimer()"
+                        class="cyber-btn cyber-btn-active px-6 py-2.5 rounded-lg text-sm font-extrabold tracking-widest">
+                        ▶ 啟動序列
+                    </button>
+                    <button onclick="resetTimer()"
+                        class="cyber-btn px-5 py-2.5 rounded-lg text-sm font-bold tracking-widest">
+                        ↺ 重置
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== 模組 3：精密碼錶 (CHRONOGRAPH) ==================== -->
+        <section id="module-chrono" class="hidden hud-panel hud-corner rounded-xl p-4 sm:p-6">
+            <div class="flex items-center justify-between text-xs tracking-widest mb-4 pb-2 border-b"
+                 style="border-color: var(--primary-border); color: var(--text-muted);">
+                <span>PRECISION CHRONOGRAPH // 毫秒級精密碼錶</span>
+                <span id="lap-counter-badge" style="color: var(--primary);">LAPS: 0</span>
+            </div>
+
+            <div class="flex flex-col items-center">
+                <!-- 碼錶數位顯示 -->
+                <div class="font-hud font-black text-4xl sm:text-6xl tracking-wider neon-text tabular-nums my-2 flex items-baseline">
+                    <span id="chrono-main">00:00:00</span>
+                    <span class="text-2xl sm:text-3xl ml-1 opacity-90">.<span id="chrono-ms">000</span></span>
+                </div>
+
+                <!-- 碼錶控制按鈕 -->
+                <div class="flex flex-wrap items-center justify-center gap-3 my-3">
+                    <button id="chrono-start-btn" onclick="toggleChrono()"
+                        class="cyber-btn cyber-btn-active px-6 py-2.5 rounded-lg text-sm font-extrabold tracking-widest">
+                        ▶ 開始計時
+                    </button>
+                    <button id="chrono-lap-btn" onclick="recordLap()" disabled
+                        class="cyber-btn px-5 py-2.5 rounded-lg text-sm font-bold tracking-widest disabled:opacity-40">
+                        ⚑ 分段紀錄 (LAP)
+                    </button>
+                    <button onclick="resetChrono()"
+                        class="cyber-btn px-5 py-2.5 rounded-lg text-sm font-bold tracking-widest">
+                        ↺ 歸零
+                    </button>
+                </div>
+
+                <!-- 分段紀錄列表 -->
+                <div class="w-full max-w-lg mt-2 rounded border overflow-hidden"
+                     style="background-color: var(--bg-sub); border-color: var(--primary-border);">
+                    <div class="grid grid-cols-3 px-4 py-1.5 text-[11px] font-bold tracking-wider border-b"
+                         style="border-color: var(--primary-border); color: var(--text-muted);">
+                        <span>分段編號</span>
+                        <span class="text-center">單圈間隔</span>
+                        <span class="text-right">累計時間</span>
+                    </div>
+                    <div id="chrono-laps-list" class="max-h-36 overflow-y-auto divide-y text-xs tabular-nums"
+                         style="border-color: var(--primary-border);">
+                        <div class="py-4 text-center opacity-50">尚無分段紀錄數據</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- 底部版權與系統識別 -->
+    <footer class="relative z-10 w-full max-w-3xl mx-auto text-center text-[11px] tracking-widest py-1 opacity-65"
+            style="color: var(--text-muted);">
+        CHRONO-X QUANTUM HUD INTERFACE // HIGH-PRECISION DIGITAL TELEMETRY
+    </footer>
+
+    <script>
+        /* ==========================================================================
+           1. 全域狀態與科幻校準訊息資料庫
+           ========================================================================== */
+        let is24Hour = true;
+        let soundEnabled = false;
+        let audioCtx = null;
+        let lastSecondTick = -1;
+        let calibrationTimeout = null;
+
+        const CALIBRATION_MESSAGES = [
+            "量子時鐘同步完成 // 偏移量 0.0000ms",
+            "時間軸穩定度 99.99% // 原子鐘鎖定中",
+            "星際網路 NTP 封包校驗通過 [OK]",
+            "核心震盪器頻率正常 // 32,768 Hz",
+            "時空曲率補償已套用 // 系統最佳狀態",
+            "光子感測陣列掃描完畢 // 無異常波動"
+        ];
+
+        const WORLD_NODES = [
+            { code: 'TPE', city: '台北 TAIPEI', tz: 'Asia/Taipei', offset: 'UTC+8' },
+            { code: 'TYO', city: '東京 TOKYO', tz: 'Asia/Tokyo', offset: 'UTC+9' },
+            { code: 'LON', city: '倫敦 LONDON', tz: 'Europe/London', offset: 'UTC+0' },
+            { code: 'NYC', city: '紐約 NEW YORK', tz: 'America/New_York', offset: 'UTC-5' }
+        ];
+
+        /* ==========================================================================
+           2. Web Audio API 合成電子脈衝與警報音效
+           ========================================================================== */
+        function ensureAudioContext() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        // 每秒低頻電子脈衝滴答聲
+        function playPulseTick(isEven) {
+            if (!soundEnabled) return;
+            try {
+                ensureAudioContext();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(isEven ? 240 : 180, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(60, audioCtx.currentTime + 0.035);
+
+                gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.045);
+            } catch (e) {}
+        }
+
+        // 按鈕高頻確認嗶聲
+        function playBeep(freq = 1200, duration = 0.06, vol = 0.07) {
+            if (!soundEnabled) return;
+            try {
+                ensureAudioContext();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(freq * 1.25, audioCtx.currentTime + duration);
+
+                gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration + 0.01);
+            } catch (e) {}
+        }
+
+        // 校準掃描科技音效
+        function playScanSound() {
+            if (!soundEnabled) return;
+            try {
+                ensureAudioContext();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(320, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(1480, audioCtx.currentTime + 0.35);
+
+                gain.gain.setValueAtTime(0.06, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.38);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.4);
+            } catch (e) {}
+        }
+
+        // 戰術倒數結束電子警報音
+        function playTacticalAlarm() {
+            try {
+                ensureAudioContext();
+                const pattern = [0, 0.16, 0.32, 0.55, 0.71];
+                pattern.forEach((delay, idx) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    const t = audioCtx.currentTime + delay;
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(idx >= 3 ? 1320 : 980, t);
+
+                    gain.gain.setValueAtTime(0.1, t);
+                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(t);
+                    osc.stop(t + 0.13);
+                });
+            } catch (e) {}
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const indicator = document.getElementById('sound-indicator');
+            const label = document.getElementById('sound-label');
+            const btn = document.getElementById('sound-toggle-btn');
+
+            if (soundEnabled) {
+                ensureAudioContext();
+                indicator.style.backgroundColor = 'var(--primary)';
+                indicator.classList.add('animate-pulse');
+                label.textContent = '脈衝音效: 開';
+                btn.style.borderColor = 'var(--primary)';
+                playBeep(1400, 0.08, 0.1);
+            } else {
+                indicator.style.backgroundColor = '#6B7280';
+                indicator.classList.remove('animate-pulse');
+                label.textContent = '脈衝音效: 關';
+                btn.style.borderColor = 'var(--primary-border)';
+            }
+        }
+
+        /* ==========================================================================
+           3. 主題切換 & 12/24 小時制切換
+           ========================================================================== */
+        function setTheme(themeName) {
+            document.documentElement.setAttribute('data-theme', themeName);
+            document.querySelectorAll('[data-theme-btn]').forEach(btn => {
+                if (btn.getAttribute('data-theme-btn') === themeName) {
+                    btn.classList.add('cyber-btn-active');
+                } else {
+                    btn.classList.remove('cyber-btn-active');
+                }
+            });
+            playBeep(1100, 0.05);
+        }
+
+        function toggleHourFormat() {
+            is24Hour = !is24Hour;
+            document.getElementById('format-toggle-btn').textContent = is24Hour ? '24H 制' : '12H 制';
+            const ampmBadge = document.getElementById('ampm-badge');
+            if (is24Hour) {
+                ampmBadge.classList.add('hidden');
+            } else {
+                ampmBadge.classList.remove('hidden');
+            }
+            playBeep(1250, 0.05);
+        }
+
+        /* ==========================================================================
+           4. 主數位時鐘、ISO 週數、當日進度與世界時區矩陣更新
+           ========================================================================== */
+        function getISOWeekNumber(date) {
+            const tempDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+            const dayNum = tempDate.getUTCDay() || 7;
+            tempDate.setUTCDate(tempDate.getUTCDate() + 4 - dayNum);
+            const yearStart = new Date(Date.UTC(tempDate.getUTCFullYear(), 0, 1));
+            return Math.ceil((((tempDate - yearStart) / 86400000) + 1) / 7);
+        }
+
+        function initWorldNodesUI() {
+            const grid = document.getElementById('world-nodes-grid');
+            grid.innerHTML = WORLD_NODES.map(node => `
+                <div class="rounded-lg p-3 border flex flex-col justify-between"
+                     style="background-color: var(--bg-sub); border-color: var(--primary-border);">
+                    <div class="flex items-center justify-between text-[11px] tracking-wider mb-1">
+                        <span class="font-bold" style="color: var(--primary);">[${node.code}]</span>
+                        <span style="color: var(--text-muted);">${node.offset}</span>
+                    </div>
+                    <div class="text-xs font-bold mb-1.5 truncate" style="color: var(--text-main);">${node.city}</div>
+                    <div id="world-time-${node.code}" class="font-hud text-xl sm:text-2xl font-bold tracking-wider tabular-nums"
+                         style="color: var(--primary); text-shadow: var(--glow-soft);">
+                        00:00:00
+                    </div>
+                    <div id="world-date-${node.code}" class="text-[11px] mt-1" style="color: var(--text-muted);">
+                        --/--
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateWorldNodes(now) {
+            WORLD_NODES.forEach(node => {
+                try {
+                    const timeStr = now.toLocaleTimeString('en-GB', {
+                        timeZone: node.tz,
+                        hour12: !is24Hour,
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                    });
+                    const dateStr = now.toLocaleDateString('zh-TW', {
+                        timeZone: node.tz,
+                        month: '2-digit',
+                        day: '2-digit',
+                        weekday: 'short'
+                    });
+                    const timeEl = document.getElementById(`world-time-${node.code}`);
+                    const dateEl = document.getElementById(`world-date-${node.code}`);
+                    if (timeEl) timeEl.textContent = timeStr;
+                    if (dateEl) dateEl.textContent = dateStr;
+                } catch (e) {}
+            });
+        }
+
+        function updateMainClock() {
+            const now = new Date();
+            const rawHours = now.getHours();
+            const minutes = now.getMinutes();
+            const seconds = now.getSeconds();
+            const millis = now.getMilliseconds();
+
+            // 1. 處理 12/24 小時制顯示
+            let displayHours = rawHours;
+            if (!is24Hour) {
+                const ampm = rawHours >= 12 ? 'PM' : 'AM';
+                document.getElementById('ampm-badge').textContent = ampm;
+                displayHours = rawHours % 12 || 12;
+            }
+
+            document.getElementById('main-hours').textContent = String(displayHours).padStart(2, '0');
+            document.getElementById('main-minutes').textContent = String(minutes).padStart(2, '0');
+            document.getElementById('main-seconds').textContent = String(seconds).padStart(2, '0');
+            document.getElementById('main-millis').textContent = String(millis).padStart(3, '0');
+
+            // 2. 每秒觸發一次的數據更新 (音效、日期、當日進度、世界時區)
+            if (seconds !== lastSecondTick) {
+                lastSecondTick = seconds;
+                playPulseTick(seconds % 2 === 0);
+
+                // 繁體中文日期與星期
+                const weekDays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+                const fullDateStr = `${now.getFullYear()}年${String(now.getMonth() + 1).padStart(2, '0')}月${String(now.getDate()).padStart(2, '0')}日 ${weekDays[now.getDay()]}`;
+                document.getElementById('full-date-display').textContent = fullDateStr;
+
+                // ISO 週數與 Unix 時間戳
+                const isoWeek = getISOWeekNumber(now);
+                document.getElementById('iso-week-display').textContent = `ISO 週數: W${String(isoWeek).padStart(2, '0')}`;
+                document.getElementById('unix-timestamp-display').textContent = `UNIX: ${Math.floor(now.getTime() / 1000)}`;
+
+                // 當日進度百分比 (Day Progress %)
+                const secondsPassedToday = rawHours * 3600 + minutes * 60 + seconds;
+                const dayPercent = ((secondsPassedToday / 86400) * 100).toFixed(2);
+                document.getElementById('day-progress-text').textContent = `${dayPercent}%`;
+                document.getElementById('day-progress-bar').style.width = `${dayPercent}%`;
+
+                // 同步更新世界時區矩陣
+                updateWorldNodes(now);
+            }
+
+            requestAnimationFrame(updateMainClock);
+        }
+
+        /* ==========================================================================
+           5. 互動彩蛋：系統校準掃描線 (CALIBRATING)
+           ========================================================================== */
+        function triggerCalibration() {
+            playScanSound();
+
+            const container = document.getElementById('scan-beam-container');
+            container.innerHTML = '<div class="calibrating-beam"></div>';
+
+            const msgEl = document.getElementById('calibration-msg');
+            const tagEl = document.getElementById('calibration-tag');
+
+            tagEl.textContent = 'CALIBRATING...';
+            tagEl.style.backgroundColor = 'var(--primary)';
+            tagEl.style.color = '#030712';
+            msgEl.textContent = '正在掃描時間基準序列，執行量子相位對齊...';
+
+            clearTimeout(calibrationTimeout);
+            calibrationTimeout = setTimeout(() => {
+                const randomMsg = CALIBRATION_MESSAGES[Math.floor(Math.random() * CALIBRATION_MESSAGES.length)];
+                msgEl.textContent = randomMsg;
+                tagEl.textContent = 'SYNCED';
+                tagEl.style.backgroundColor = 'var(--primary-dim)';
+                tagEl.style.color = 'var(--primary)';
+                container.innerHTML = '';
+            }, 950);
+        }
+
+        /* ==========================================================================
+           6. 儀表模組切換 (世界時區 / 戰術倒數 / 精密碼錶)
+           ========================================================================== */
+        function switchModule(moduleKey) {
+            const modules = ['world', 'timer', 'chrono'];
+            modules.forEach(key => {
+                const section = document.getElementById(`module-${key}`);
+                const btn = document.getElementById(`tab-btn-${key}`);
+                if (key === moduleKey) {
+                    section.classList.remove('hidden');
+                    btn.classList.add('cyber-btn-active');
+                    btn.setAttribute('aria-selected', 'true');
+                } else {
+                    section.classList.add('hidden');
+                    btn.classList.remove('cyber-btn-active');
+                    btn.setAttribute('aria-selected', 'false');
+                }
+            });
+            playBeep(1300, 0.05);
+        }
+
+        /* ==========================================================================
+           7. 戰術倒數計時器 (TACTICAL TIMER)
+           ========================================================================== */
+        let timerTotalSec = 25 * 60;
+        let timerRemainSec = 25 * 60;
+        let timerInterval = null;
+        let isTimerActive = false;
+
+        function renderTimerDisplay() {
+            const mins = Math.floor(timerRemainSec / 60);
+            const secs = timerRemainSec % 60;
+            document.getElementById('timer-readout').textContent =
+                `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+            const pct = timerTotalSec > 0 ? (timerRemainSec / timerTotalSec) * 100 : 0;
+            document.getElementById('timer-progress-fill').style.width = `${pct}%`;
+        }
+
+        function setTimerPreset(mins, secs, label) {
+            stopTimer();
+            document.getElementById('timer-alert-box').classList.add('hidden');
+            document.getElementById('timer-mode-label').textContent = label;
+            timerTotalSec = mins * 60 + secs;
+            timerRemainSec = timerTotalSec;
+            renderTimerDisplay();
+            playBeep(1200, 0.05);
+        }
+
+        function adjustTimer(deltaSeconds) {
+            if (isTimerActive) return;
+            document.getElementById('timer-alert-box').classList.add('hidden');
+            timerRemainSec = Math.max(10, Math.min(5999, timerRemainSec + deltaSeconds));
+            timerTotalSec = timerRemainSec;
+            renderTimerDisplay();
+            playBeep(1050, 0.04);
+        }
+
+        function toggleTimer() {
+            if (isTimerActive) {
+                stopTimer();
+                playBeep(900, 0.06);
+            } else {
+                startTimer();
+                playBeep(1400, 0.06);
+            }
+        }
+
+        function startTimer() {
+            if (timerRemainSec <= 0) {
+                timerRemainSec = timerTotalSec;
+            }
+            document.getElementById('timer-alert-box').classList.add('hidden');
+            isTimerActive = true;
+            document.getElementById('timer-start-stop-btn').textContent = '⏸ 暫停序列';
+
+            timerInterval = setInterval(() => {
+                if (timerRemainSec > 0) {
+                    timerRemainSec--;
+                    renderTimerDisplay();
+                } else {
+                    stopTimer();
+                    document.getElementById('timer-alert-box').classList.remove('hidden');
+                    playTacticalAlarm();
+                }
+            }, 1000);
+        }
+
+        function stopTimer() {
+            isTimerActive = false;
+            clearInterval(timerInterval);
+            document.getElementById('timer-start-stop-btn').textContent = '▶ 啟動序列';
+        }
+
+        function resetTimer() {
+            stopTimer();
+            document.getElementById('timer-alert-box').classList.add('hidden');
+            timerRemainSec = timerTotalSec;
+            renderTimerDisplay();
+            playBeep(950, 0.05);
+        }
+
+        /* ==========================================================================
+           8. 精密碼錶 (CHRONOGRAPH)
+           ========================================================================== */
+        let chronoRunning = false;
+        let chronoStartTime = 0;
+        let chronoElapsed = 0;
+        let chronoRafId = null;
+        let laps = [];
+
+        function formatChronoTime(ms) {
+            const totalSeconds = Math.floor(ms / 1000);
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+            const millis = Math.floor(ms % 1000);
+            return {
+                main: `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`,
+                ms: String(millis).padStart(3, '0')
+            };
+        }
+
+        function updateChronoLoop() {
+            if (!chronoRunning) return;
+            const currentElapsed = chronoElapsed + (performance.now() - chronoStartTime);
+            const formatted = formatChronoTime(currentElapsed);
+            document.getElementById('chrono-main').textContent = formatted.main;
+            document.getElementById('chrono-ms').textContent = formatted.ms;
+            chronoRafId = requestAnimationFrame(updateChronoLoop);
+        }
+
+        function toggleChrono() {
+            const startBtn = document.getElementById('chrono-start-btn');
+            const lapBtn = document.getElementById('chrono-lap-btn');
+
+            if (!chronoRunning) {
+                chronoRunning = true;
+                chronoStartTime = performance.now();
+                startBtn.textContent = '⏸ 暫停計時';
+                lapBtn.disabled = false;
+                playBeep(1450, 0.05);
+                updateChronoLoop();
+            } else {
+                chronoRunning = false;
+                chronoElapsed += performance.now() - chronoStartTime;
+                cancelAnimationFrame(chronoRafId);
+                startBtn.textContent = '▶ 繼續計時';
+                lapBtn.disabled = true;
+                playBeep(950, 0.05);
+            }
+        }
+
+        function recordLap() {
+            if (!chronoRunning) return;
+            const totalMs = chronoElapsed + (performance.now() - chronoStartTime);
+            const prevTotalMs = laps.length > 0 ? laps[0].totalMs : 0;
+            const splitMs = totalMs - prevTotalMs;
+
+            laps.unshift({
+                index: laps.length + 1,
+                splitMs,
+                totalMs
+            });
+
+            playBeep(1600, 0.04);
+            renderLaps();
+        }
+
+        function renderLaps() {
+            document.getElementById('lap-counter-badge').textContent = `LAPS: ${laps.length}`;
+            const listEl = document.getElementById('chrono-laps-list');
+
+            if (laps.length === 0) {
+                listEl.innerHTML = '<div class="py-4 text-center opacity-50">尚無分段紀錄數據</div>';
+                return;
+            }
+
+            listEl.innerHTML = laps.map(lap => {
+                const splitFmt = formatChronoTime(lap.splitMs);
+                const totalFmt = formatChronoTime(lap.totalMs);
+                return `
+                    <div class="grid grid-cols-3 px-4 py-2 items-center" style="border-color: var(--primary-border);">
+                        <span class="font-bold" style="color: var(--primary);">#${String(lap.index).padStart(2, '0')}</span>
+                        <span class="text-center opacity-85">+${splitFmt.main}.${splitFmt.ms}</span>
+                        <span class="text-right font-bold">${totalFmt.main}.${totalFmt.ms}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function resetChrono() {
+            chronoRunning = false;
+            cancelAnimationFrame(chronoRafId);
+            chronoElapsed = 0;
+            laps = [];
+            document.getElementById('chrono-main').textContent = '00:00:00';
+            document.getElementById('chrono-ms').textContent = '000';
+            document.getElementById('chrono-start-btn').textContent = '▶ 開始計時';
+            document.getElementById('chrono-lap-btn').disabled = true;
+            renderLaps();
+            playBeep(900, 0.05);
+        }
+
+        /* ==========================================================================
+           9. Canvas 流動數據粒子連線背景
+           ========================================================================== */
+        function initParticleNetwork() {
+            const canvas = document.getElementById('particle-canvas');
+            const ctx = canvas.getContext('2d');
+            let width = canvas.width = window.innerWidth;
+            let height = canvas.height = window.innerHeight;
+
+            window.addEventListener('resize', () => {
+                width = canvas.width = window.innerWidth;
+                height = canvas.height = window.innerHeight;
+            });
+
+            const particleCount = Math.min(45, Math.floor((width * height) / 22000));
+            const particles = Array.from({ length: particleCount }, () => ({
+                x: Math.random() * width,
+                y: Math.random() * height,
+                vx: (Math.random() - 0.5) * 0.45,
+                vy: (Math.random() - 0.5) * 0.45,
+                radius: Math.random() * 1.8 + 0.8
+            }));
+
+            function animateParticles() {
+                ctx.clearRect(0, 0, width, height);
+                const rgb = getComputedStyle(document.documentElement).getPropertyValue('--particle-rgb').trim() || '0, 243, 255';
+
+                for (let i = 0; i < particles.length; i++) {
+                    const p = particles[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+
+                    if (p.x < 0 || p.x > width) p.vx *= -1;
+                    if (p.y < 0 || p.y > height) p.vy *= -1;
+
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(${rgb}, 0.55)`;
+                    ctx.fill();
+
+                    for (let j = i + 1; j < particles.length; j++) {
+                        const p2 = particles[j];
+                        const dist = Math.hypot(p.x - p2.x, p.y - p2.y);
+                        if (dist < 130) {
+                            ctx.beginPath();
+                            ctx.moveTo(p.x, p.y);
+                            ctx.lineTo(p2.x, p2.y);
+                            ctx.strokeStyle = `rgba(${rgb}, ${(1 - dist / 130) * 0.22})`;
+                            ctx.lineWidth = 0.8;
+                            ctx.stroke();
+                        }
+                    }
+                }
+                requestAnimationFrame(animateParticles);
+            }
+            animateParticles();
+        }
+
+        /* ==========================================================================
+           10. 啟動系統初始化
+           ========================================================================== */
+        window.addEventListener('DOMContentLoaded', () => {
+            initWorldNodesUI();
+            renderTimerDisplay();
+            initParticleNetwork();
+            requestAnimationFrame(updateMainClock);
+        });
+    </script>
+</body>
+</html>
