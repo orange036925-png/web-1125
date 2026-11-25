@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>療癒小時鐘</title>
+<style>
+  :root {
+    --pink:#ffb8cb; --rose:#ed789d; --cream:#fff9f1;
+    --ink:#755b68; --mint:#cceee3; --lav:#e7ddff;
+  }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; min-height:100vh; display:grid; place-items:center;
+    padding:24px; color:var(--ink);
+    font-family:"Noto Sans TC","Microsoft JhengHei",sans-serif;
+    background:
+      radial-gradient(circle at 12% 18%, #fff 0 5px, transparent 6px),
+      radial-gradient(circle at 85% 25%, #fff 0 7px, transparent 8px),
+      linear-gradient(135deg,#ffe4ec,#fff3df 52%,#e8f8f1);
+    background-size:90px 90px,130px 130px,auto;
+  }
+  .wrap { width:min(100%,520px); text-align:center; }
+  .eyebrow { font-size:14px; letter-spacing:3px; color:#b17d91; margin-bottom:10px; }
+  h1 { font-size:clamp(27px,6vw,38px); margin:0 0 8px; color:#b85e80; }
+  .subtitle { margin:0 0 25px; color:#a78691; font-size:14px; }
+  .clock-card {
+    position:relative; padding:30px 22px 26px; border-radius:34px;
+    background:rgba(255,255,255,.78); border:3px solid white;
+    box-shadow:0 18px 45px rgba(178,119,143,.18), inset 0 0 0 1px #f8dce6;
+    backdrop-filter:blur(8px);
+  }
+  .sparkle { position:absolute; font-size:24px; }
+  .s1 { top:18px; left:22px; } .s2 { top:35px; right:25px; font-size:18px; }
+  .clock {
+    width:min(68vw,270px); aspect-ratio:1; margin:5px auto 22px;
+    position:relative; border-radius:50%;
+    background:radial-gradient(circle at 35% 28%,#fff 0 35%,#fff1f5 75%,#ffe0e9);
+    border:10px solid #ffc7d7;
+    box-shadow:0 8px 0 #ed9fb7, 0 15px 25px #d99aaf55, inset 0 0 0 3px white;
+  }
+  .clock:before { content:""; position:absolute; inset:9px; border:2px dashed #f3b3c8; border-radius:50%; }
+  .number { position:absolute; font-weight:800; font-size:20px; color:#c87594; transform:translate(-50%,-50%); }
+  .n12{left:50%;top:12%}.n1{left:69%;top:17%}.n2{left:83%;top:31%}
+  .n3{left:88%;top:50%}.n4{left:83%;top:69%}.n5{left:69%;top:83%}
+  .n6{left:50%;top:88%}.n7{left:31%;top:83%}.n8{left:17%;top:69%}
+  .n9{left:12%;top:50%}.n10{left:17%;top:31%}.n11{left:31%;top:17%}
+  .hand { position:absolute; left:50%; bottom:50%; transform-origin:bottom center; border-radius:10px; z-index:3; }
+  .hour { width:7px; height:25%; background:#b76b88; }
+  .minute { width:5px; height:34%; background:#e78ba9; }
+  .second { width:2px; height:39%; background:#8bcdb9; }
+  .pin { position:absolute; z-index:4; width:15px;height:15px;left:50%;top:50%;transform:translate(-50%,-50%);border-radius:50%;background:#a65f7c;border:3px solid white; }
+  .digital { font-size:clamp(34px,9vw,48px); font-weight:800; letter-spacing:2px; color:#b85e80; font-variant-numeric:tabular-nums; }
+  .date { margin-top:5px; font-size:15px; color:#a78691; }
+  .message { margin:18px 0 20px; font-size:15px; color:#9b7182; }
+  .actions { display:flex; justify-content:center; flex-wrap:wrap; gap:10px; }
+  button {
+    border:0; border-radius:999px; padding:11px 18px; cursor:pointer;
+    color:#8e5e72; background:#ffe2eb; font:600 14px inherit;
+    box-shadow:0 3px 0 #efbdce; transition:.18s;
+  }
+  button:hover { transform:translateY(-2px); filter:brightness(1.02); }
+  button:focus-visible { outline:3px solid #b76b88; outline-offset:3px; }
+  .theme-mint { background:#e3f7ef; box-shadow:0 3px 0 #b9e3d5; }
+  .theme-lav { background:#eee8ff; box-shadow:0 3px 0 #d4c8f5; }
+  footer { margin-top:20px; font-size:12px; color:#b28d9b; }
+  @media (max-width:380px) { .clock-card{padding:25px 14px}.number{font-size:17px} }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="eyebrow">✦ A LITTLE MOMENT OF JOY ✦</div>
+  <h1>療癒小時鐘 🧸</h1>
+  <p class="subtitle">讓每一分每一秒，都可可愛愛 ♡</p>
+
+  <section class="clock-card" aria-label="即時時鐘">
+    <span class="sparkle s1">✦</span><span class="sparkle s2">♡</span>
+    <div class="clock" aria-label="指針時鐘">
+      <span class="number n12">12</span><span class="number n1">1</span>
+      <span class="number n2">2</span><span class="number n3">3</span>
+      <span class="number n4">4</span><span class="number n5">5</span>
+      <span class="number n6">6</span><span class="number n7">7</span>
+      <span class="number n8">8</span><span class="number n9">9</span>
+      <span class="number n10">10</span><span class="number n11">11</span>
+      <div class="hand hour" id="hour"></div>
+      <div class="hand minute" id="minute"></div>
+      <div class="hand second" id="second"></div>
+      <div class="pin"></div>
+    </div>
+    <div class="digital" id="digital">00:00:00</div>
+    <div class="date" id="date">載入日期中…</div>
+    <p class="message" id="message">今天也要記得對自己好一點 ☁️</p>
+    <div class="actions">
+      <button id="formatBtn" type="button">切換 12 / 24 小時</button>
+      <button class="theme-mint" type="button" data-theme="mint">薄荷綠</button>
+      <button class="theme-lav" type="button" data-theme="lav">夢幻紫</button>
+      <button type="button" data-theme="pink">櫻花粉</button>
+    </div>
+  </section>
+  <footer>Made with ♡ · 每秒更新的專屬小時光</footer>
+</main>
+<script>
+  let use24 = true;
+  const $ = id => document.getElementById(id);
+  const pad = n => String(n).padStart(2, "0");
+
+  function updateClock() {
+    const now = new Date();
+    const h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
+    $("hour").style.transform = `translateX(-50%) rotate(${(h % 12) * 30 + m * .5}deg)`;
+    $("minute").style.transform = `translateX(-50%) rotate(${m * 6 + s * .1}deg)`;
+    $("second").style.transform = `translateX(-50%) rotate(${s * 6}deg)`;
+
+    let shownHour = use24 ? h : (h % 12 || 12);
+    $("digital").textContent = `${pad(shownHour)}:${pad(m)}:${pad(s)}${use24 ? "" : (h < 12 ? " AM" : " PM")}`;
+    $("date").textContent = new Intl.DateTimeFormat("zh-TW", {
+      year:"numeric", month:"long", day:"numeric", weekday:"long"
+    }).format(now);
+
+    const hour = h;
+    $("message").textContent =
+      hour < 6 ? "夜深了，辛苦一天的你快休息吧 🌙" :
+      hour < 11 ? "早安！用好心情迎接新的一天 ☀️" :
+      hour < 14 ? "午安～記得吃飯、補充元氣 🍰" :
+      hour < 18 ? "午後時光，慢慢來也沒關係 🌷" :
+      hour < 22 ? "晚安前的時光，留一點給自己 ♡" :
+      "今天做得很好了，準備好好休息吧 ⭐";
+  }
+  $("formatBtn").addEventListener("click", () => { use24 = !use24; updateClock(); });
+  document.querySelectorAll("[data-theme]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const theme = btn.dataset.theme;
+      if (theme === "mint") {
+        document.documentElement.style.setProperty("--pink","#bce8d9");
+        document.documentElement.style.setProperty("--rose","#5d9f89");
+        document.querySelector(".clock").style.borderColor="#bce8d9";
+        document.querySelector(".clock").style.boxShadow="0 8px 0 #8fcbb6, 0 15px 25px #8fcbb655, inset 0 0 0 3px white";
+      } else if (theme === "lav") {
+        document.documentElement.style.setProperty("--pink","#d8c9fa");
+        document.documentElement.style.setProperty("--rose","#9278c5");
+        document.querySelector(".clock").style.borderColor="#d8c9fa";
+        document.querySelector(".clock").style.boxShadow="0 8px 0 #b8a4e8, 0 15px 25px #b8a4e855, inset 0 0 0 3px white";
+      } else {
+        document.documentElement.style.setProperty("--pink","#ffb8cb");
+        document.documentElement.style.setProperty("--rose","#ed789d");
+        document.querySelector(".clock").style.borderColor="#ffc7d7";
+        document.querySelector(".clock").style.boxShadow="0 8px 0 #ed9fb7, 0 15px 25px #d99aaf55, inset 0 0 0 3px white";
+      }
+    });
+  });
+  updateClock();
+  setInterval(updateClock, 1000);
+</script>
+</body>
+</html>
